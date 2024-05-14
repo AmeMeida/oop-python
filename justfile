@@ -8,3 +8,6 @@ run:
 
 test:
     just run < entrada.in | diff -y - expected.out
+
+date:
+    python3 src/date.py
