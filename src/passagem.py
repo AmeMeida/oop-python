@@ -3,7 +3,7 @@
 # Se necessario importe suas bibliotecas aqui
 from dataclasses import dataclass
 from sys import stdin
-from date import Data
+from data import Data
 
 def main():
     controller = FlightControl()
@@ -24,7 +24,10 @@ def main():
             flight = int(flight)
             price = float(price)
 
-            controller[flight].price = price
+            if flight in controller:
+                controller[flight].price = price
+            else:
+                print("Voo nao encontrado")
         elif instruction == "cancelar":
             flight = int(input())
             del controller[flight]
@@ -32,43 +35,12 @@ def main():
             airport = input()
             date_o, date_f = map(Data, input().split())
 
-            flights = controller.flights_for(airport)
-            candidate_flights = {}
+            trips = controller.plan_trip(date_o, date_f, airport)
 
-            for flight in flights:
-                if flight.date - date_o <= 0:
-                    continue
-
-                destination = flight.route[1]
-
-                # pega somente o primeiro com o destino, pois estão ordenados
-                if destination not in candidate_flights:
-                    candidate_flights[destination] = flight
-
-            best_trip = None
-            best_price = None
-
-            for (destination, first_flight) in candidate_flights.items():
-                last_flight = None
-
-                for flight in controller.flights_for(destination):
-                    if date_f - flight.date <= 0 or flight.date - first_flight.date < 4:
-                        continue
-
-                    if flight.route[1] == airport:
-                        last_flight = flight
-                        break
-
-                if not last_flight:
-                    continue # voo de volta nao encontrado
-
-                price = first_flight.price + last_flight.price
-
-                if not best_trip or best_price > price:
-                    best_trip = (first_flight, last_flight)
-                    best_price = price
-
-            print(*best_trip, sep="\n")
+            if len(trips):
+                print(*trips[0], sep="\n")
+            else:
+                print("Voo nao encontrado")
 
 @dataclass
 class Voo:
@@ -117,7 +89,7 @@ class Voo:
 @dataclass
 class FlightControl:
     _flights: dict[str, Voo]
-    _routes: dict[str, list[str]]
+    _routes: dict[str, list[Voo]]
 
     def __init__(self):
         self._flights = {}
@@ -131,21 +103,47 @@ class FlightControl:
         del self._flights[flight]
 
         if len(self._routes[it.route[0]]) > 1:
-            self._routes[it.route[0]].remove(flight)
+            self._routes[it.route[0]].remove(it)
         else:
             del self._routes[it.route[0]]
+
+    def __contains__(self, flight: str):
+        return flight in self._flights
 
     def add(self, new_flight: Voo):
         self._flights[new_flight.flight] = new_flight
 
         if (start := new_flight.route[0]) in self._routes:
-            self._routes[start].append(new_flight.flight)
-            self._routes[start].sort(key=lambda voo: self._flights[voo].price)
+            self._routes[start].append(new_flight)
+            self._routes[start].sort(key=lambda voo: voo.date.days)
         else:
-            self._routes[start] = [new_flight.flight]
+            self._routes[start] = [new_flight]
 
     def flights_for(self, airport: str):
-        return list(map(lambda flight_id: self._flights[flight_id], self._routes[airport]))
+        if airport in self._routes:
+            return self._routes[airport][:]
+        else:
+            return []
+
+    def plan_trip(self, date_o: Data, date_f: Data, airport: str):
+            trips: list[tuple[Voo, Voo]] = []
+
+            for first_flight in self.flights_for(airport):
+                if first_flight.date - date_o < 0 or date_f - first_flight.date < 4:
+                    continue
+
+                destination = first_flight.route[1]
+
+                for back_flight in self.flights_for(destination):
+                    if back_flight.route[1] != airport \
+                        or date_f - back_flight.date < 0 \
+                        or back_flight.date - first_flight.date < 4:
+                        continue
+
+                    trips.append((first_flight, back_flight))
+
+            trips.sort(key=lambda route: route[0].price + route[1].price)
+            return trips
 
 # Aqui em baixo fica a sua solucao
 

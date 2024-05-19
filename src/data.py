@@ -15,6 +15,15 @@ class Data:
     def __sub__(self, other_date):
         return self.days - other_date.days
 
+    def __eq__(self, __value: object) -> bool:
+        self.days == __value.days
+
+    def __lt__(self, __value: object) -> bool:
+        self.days < __value.days
+
+    def __gt__(self, __value: object) -> bool:
+        self.days > __value.days
+
 def is_leap(year: int) -> bool:
     return (year & 0b11 == 0) and (not (year % 100 == 0) or (year % 400 == 0))
 
@@ -47,3 +56,8 @@ if __name__ == "__main__":
     print(to_days("18/03/2024"))
     print(to_days("18/03/2010"))
     print(to_days("18/03/2023"))
+
+    a = to_days("01/08/2021")
+    b = to_days("02/08/2021")
+
+    print([a, b], sorted([b, a]))
